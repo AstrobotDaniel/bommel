@@ -537,7 +537,7 @@ Sub MergeProcurementLists()
         ' Rule 0: Quantity changed for ordered items (LIGHT RED) - HIGHEST PRIORITY
         If quantityChangedColIdx > 0 Then
             quantityChangedCol = Split(mainWs.Cells(1, quantityChangedColIdx).Address, "$")(1)
-            With dataRange.FormatConditions.Add(xlExpression, , "=$" & quantityChangedCol & "2=TRUE")
+            With dataRange.FormatConditions.Add(xlExpression, , "=$" & quantityChangedCol & "2")
                 .Interior.Color = RGB(255, 179, 179)  ' Light Red (Salmon Pink)
                 .Font.Bold = True
                 .StopIfTrue = True
