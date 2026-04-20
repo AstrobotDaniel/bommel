@@ -54,8 +54,8 @@ Sub MergeProcurementLists()
     '==========================================================================
     
     ' Filenames (filename only, no path, e.g. "file.xlsx")
-    Const OLD_WORKBOOK_NAME As String = "POD.02_20260416.xlsx"
-    Const NEW_WORKBOOK_NAME As String = "POD.02_20260416.xlsx"
+    Const OLD_WORKBOOK_NAME As String = "POD.02_20260420.xlsm"
+    Const NEW_WORKBOOK_NAME As String = "POD.02_20260420.xlsm"
     
     ' Columns to transfer from old workbook (user-maintained data)
     Dim transferCols As Variant
@@ -448,9 +448,10 @@ Sub MergeProcurementLists()
     End If
 
     ' Restore formulas from new workbook.
-    ' FormulaR1C1 uses offsets relative to the cell itself, so writing it to a
-    ' different column automatically adjusts the column references — no manual
-    ' formula parsing needed.
+    ' UsedRange.Cells(r,c) is used so the coordinates are correct even when the
+    ' sheet's used range does not start at A1.
+    ' Formula cells always win — if the new workbook has a formula, the output
+    ' gets that formula regardless of whether a transferred old value was written.
     Debug.Print vbCrLf & "8b. Restoring formulas from new workbook..."
 
     Dim newToOutCol() As Long
@@ -472,17 +473,31 @@ Sub MergeProcurementLists()
     For fRow = 2 To UBound(newData, 1)
         For fCol = 1 To UBound(newHeaders, 2)
             If newToOutCol(fCol) > 0 Then
-                If newWs.Cells(fRow, fCol).HasFormula Then
-                    If Not IsInArray(CStr(newHeaders(1, fCol)), transferCols) Then
-                        mainWs.Cells(fRow, newToOutCol(fCol)).FormulaR1C1 = _
-                            newWs.Cells(fRow, fCol).FormulaR1C1
-                        formulaCount = formulaCount + 1
-                    End If
+                If newWs.UsedRange.Cells(fRow, fCol).HasFormula Then
+                    mainWs.Cells(fRow, newToOutCol(fCol)).FormulaR1C1 = _
+                        newWs.UsedRange.Cells(fRow, fCol).FormulaR1C1
+                    formulaCount = formulaCount + 1
                 End If
             End If
         Next fCol
     Next fRow
     Debug.Print "   ✓ " & formulaCount & " formulas restored"
+
+    ' Copy column number formats from new workbook (e.g. accounting, date, number).
+    ' Uses the first data row of each column as representative format.
+    Dim colFmt As String, fmtColCount As Long
+    fmtColCount = 0
+    For nc = 1 To UBound(newHeaders, 2)
+        If newToOutCol(nc) > 0 Then
+            colFmt = newWs.UsedRange.Cells(2, nc).NumberFormat
+            If colFmt <> "General" And colFmt <> "" Then
+                mainWs.Range(mainWs.Cells(2, newToOutCol(nc)), _
+                             mainWs.Cells(UBound(outputData, 1), newToOutCol(nc))).NumberFormat = colFmt
+                fmtColCount = fmtColCount + 1
+            End If
+        End If
+    Next nc
+    Debug.Print "   ✓ " & fmtColCount & " column number formats applied"
 
     ' 9. Apply formatting
     Debug.Print vbCrLf & "8. Applying formatting..."
